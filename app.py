@@ -121,7 +121,8 @@ st.markdown("""
 <hr style='border: 1px solid #666;'>
 
 <div style='text-align:center; font-size:18px; color:#444; margin-top:10px;'>
-    Created with  by <b>Pratyush Kumar athghara</b><br>
+   Engineered with ❤️ and AI — <b>Pratyush Kumar</b>
     <span style='font-size:14px; color:#777;'>AI-Driven B2B Market Analytics Project</span>
 </div>
 """, unsafe_allow_html=True)
+
