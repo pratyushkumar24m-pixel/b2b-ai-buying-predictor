@@ -1,0 +1,11 @@
+﻿industry,company_size,website_visits,pages_viewed,time_spent_min,email_opens,content_downloads,demo_request
+IT,Medium,,,,,,0
+Manufacturing,Large,,,,,,1
+Healthcare,Small,,,,,,0
+Retail,Medium,,,,,,0
+Finance,Large,,,,,,1
+Telecom,Small,,,,,,0
+Logistics,Medium,,,,,,0
+IT,Large,,,,,,1
+Manufacturing,Medium,,,,,,0
+Retail,Small,,,,,,0
