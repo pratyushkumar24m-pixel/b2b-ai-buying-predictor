@@ -4,57 +4,39 @@ import numpy as np
 import joblib
 import os
 
-# ---------------------------------------------------------------------
-# PAGE SETTINGS
-# ---------------------------------------------------------------------
+# -----------------------------------------------------------
+# PAGE CONFIGURATION
+# -----------------------------------------------------------
 st.set_page_config(
     page_title="AI B2B Intent Predictor",
     layout="wide"
 )
 
-# ---------------------------------------------------------------------
-# CUSTOM CSS FOR PREMIUM WEBSITE LOOK
-# ---------------------------------------------------------------------
+# -----------------------------------------------------------
+# CUSTOM CSS (Premium B2B SaaS UI)
+# -----------------------------------------------------------
 st.markdown("""
     <style>
-        body {
-            background-color: #F8FAF8;
-        }
+        body { background-color: #F6F9F6; }
+
         .hero {
-            background-color: #E6F4EA;
-            border-radius: 18px;
-            padding: 50px;
-            margin-top: -30px;
-            margin-bottom: 40px;
+            background-color: #E4F4EA;
+            border-radius: 16px;
+            padding: 28px;
+            margin-top: -20px;
+            margin-bottom: 20px;
         }
         .hero-title {
-            font-size: 40px;
+            font-size: 32px;
             font-weight: 650;
             color: #2A3F2F;
             line-height: 1.2;
         }
         .hero-sub {
-            font-size: 18px;
+            font-size: 16px;
             color: #4C6B57;
             margin-top: 10px;
-            margin-bottom: 25px;
-        }
-        .about-section {
-            background-color: #FFFFFF;
-            padding: 40px;
-            border-radius: 15px;
-            margin-top: 20px;
-        }
-        .section-title {
-            font-size: 30px;
-            font-weight: 600;
-            color: #2A3F2F;
-            margin-bottom: 10px;
-        }
-        .section-text {
-            font-size: 16px;
-            color: #4B4B4B;
-            line-height: 1.6;
+            margin-bottom: 15px;
         }
         .navbar {
             background-color: #0A66C2;
@@ -67,18 +49,29 @@ st.markdown("""
             color: white;
             font-size: 16px;
             text-decoration: none;
-            margin-right: 10px;
+            margin-right: 12px;
         }
         .navbar a:hover {
             background-color:#004182;
             border-radius:5px;
         }
+        .section-title {
+            font-size: 30px;
+            font-weight: 600;
+            color: #2A3F2F;
+        }
+        .section-text {
+            font-size: 17px;
+            color: #4B4B4B;
+            line-height: 1.6;
+        }
     </style>
 """, unsafe_allow_html=True)
 
-# ---------------------------------------------------------------------
-# NAVIGATION BAR
-# ---------------------------------------------------------------------
+
+# -----------------------------------------------------------
+# TOP NAVIGATION BAR
+# -----------------------------------------------------------
 def navbar():
     st.markdown("""
         <div class="navbar">
@@ -89,13 +82,13 @@ def navbar():
 
 navbar()
 
-# Read navigation page
 query_params = st.experimental_get_query_params()
 page = query_params.get("page", ["home"])[0]
 
-# ---------------------------------------------------------------------
+
+# -----------------------------------------------------------
 # LOAD MODELS
-# ---------------------------------------------------------------------
+# -----------------------------------------------------------
 MODEL_DIR = "models"
 
 purchase_model = joblib.load(os.path.join(MODEL_DIR, "purchase_intent_model.pkl"))
@@ -104,18 +97,18 @@ feature_columns = joblib.load(os.path.join(MODEL_DIR, "feature_columns.pkl"))
 cluster_features = joblib.load(os.path.join(MODEL_DIR, "cluster_features.pkl"))
 
 
-# =====================================================================
-#  HOME PAGE (Hero + Upload)
-# =====================================================================
+# -----------------------------------------------------------
+# HOME PAGE (Short Hero + Upload + Predict)
+# -----------------------------------------------------------
 if page == "home":
 
-    # --- HERO SECTION ---
     col1, col2 = st.columns([1.2, 1])
 
+    # LEFT SIDE (TEXT + UPLOAD)
     with col1:
         st.markdown("""
             <div class="hero">
-                <div class="hero-title">Predict B2B Buying Intent <br> The Smart & Simple Way</div>
+                <div class="hero-title">Predict B2B Buying Intent<br> Quickly & Smartly</div>
                 <div class="hero-sub">
                     Upload your engagement dataset to instantly generate:<br>
                     • Lead Score • Buying Intent • Buyer Cluster • Buying Stage
@@ -123,7 +116,6 @@ if page == "home":
             </div>
         """, unsafe_allow_html=True)
 
-        # Upload inside hero
         uploaded_file = st.file_uploader("Upload your CSV or Excel file", type=["csv", "xlsx"])
 
         if uploaded_file:
@@ -145,7 +137,7 @@ if page == "home":
                 st.error(f"Missing columns: {missing_cols}")
                 st.stop()
 
-            # Encode
+            # One-hot encoding
             X = pd.get_dummies(df[required_cols], columns=["industry", "company_size"], drop_first=True)
             X = X.reindex(columns=feature_columns, fill_value=0)
 
@@ -167,8 +159,8 @@ if page == "home":
             df["lead_score"] = ((raw_score - raw_score.min()) /
                                 (raw_score.max() - raw_score.min()) * 100).round(0)
 
-            # Buying stage
-            def buying_stage(score):
+            # Buying Stage
+            def stage(score):
                 if score < 30:
                     return "Awareness"
                 elif score < 60:
@@ -178,7 +170,7 @@ if page == "home":
                 else:
                     return "Decision"
 
-            df["buying_stage"] = df["lead_score"].apply(buying_stage)
+            df["buying_stage"] = df["lead_score"].apply(stage)
 
             st.write("### Prediction Results")
             st.dataframe(df)
@@ -190,15 +182,14 @@ if page == "home":
                 mime="text/csv"
             )
 
-    # Illustration on right
+    # RIGHT SIDE (IMAGE)
     with col2:
         st.image(
             "https://img.freepik.com/premium-photo/b2b-marketing-concept-businessman-holding-b2b-business-marketing-technology-icons-business-action-plan-strategy-online-marketing-business-business_568137-2432.jpg?w=360",
-            use_column_width=True,
-            caption="AI-powered B2B Insights"
+            use_column_width=True
         )
 
-    # Sample dataset download
+    # Sample dataset
     st.write("### 📥 Download Sample Dataset")
     sample_file = "sample_b2b_dataset.csv"
     if os.path.exists(sample_file):
@@ -210,34 +201,36 @@ if page == "home":
                 mime="text/csv"
             )
 
-# =====================================================================
-#  ABOUT PAGE
-# =====================================================================
+
+# -----------------------------------------------------------
+# ABOUT PAGE
+# -----------------------------------------------------------
 elif page == "about":
 
     st.markdown("""
-        <div class="about-section">
-            <div class="section-title">About This Project</div>
-            <div class="section-text">
-                This AI-driven B2B Intent Prediction Tool was created to analyze digital 
-                engagement patterns such as website activity, content downloads, email interactions, 
-                and demo requests. Using machine learning models including Logistic Regression 
-                and K-Means Clustering, the system predicts buying intent, behavioral clusters, 
-                lead score, and the buyer’s stage in the decision journey.
-                <br><br>
-                Future enhancements may include real-time CRM integration, predictive revenue 
-                modeling, and automated marketing recommendations for sales teams and B2B marketers.
-            </div>
+        <div class="section-title">About This Project</div>
+        <div class="section-text">
+            This AI-driven B2B Buying Intent Prediction Tool analyzes digital engagement 
+            indicators such as website visits, pages viewed, email opens, document downloads, 
+            and demo requests to estimate organizational purchase readiness.
+            <br><br>
+            Using logistic regression, clustering analysis, and a weighted lead scoring 
+            strategy, the tool identifies buyer intent levels, behavioral segments, 
+            and the current buying stage of an organization in the B2B journey.
+            <br><br>
+            Future applications may include integrating CRM systems, generating real-time 
+            alerts for high-intent leads, and providing sales teams with recommended 
+            communication strategies tailored to each buying stage.
         </div>
     """, unsafe_allow_html=True)
 
-# ---------------------------------------------------------------------
-# FOOTER
-# ---------------------------------------------------------------------
+
+# -----------------------------------------------------------
+# FOOTER (Visible Without Scrolling)
+# -----------------------------------------------------------
 st.markdown("""
 <hr>
 <div style='text-align:center; color:#555; font-size:14px;'>
     Built with ❤️ and AI — Pratyush Kumar
 </div>
 """, unsafe_allow_html=True)
-
