@@ -4,18 +4,56 @@ import numpy as np
 import joblib
 import os
 
-# ============================================
-# PAGE CONFIG (Corporate SaaS Theme)
-# ============================================
+# -------------------------
+# CONFIGURATION
+# -------------------------
 st.set_page_config(
     page_title="B2B Intent Predictor",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
-# ============================================
+# -------------------------
+# PREMIUM SIMPLE NAVBAR
+# -------------------------
+def navbar():
+    st.markdown("""
+        <style>
+            .navbar {
+                background-color:#0A66C2;
+                padding:14px;
+                border-radius:8px;
+                margin-bottom:15px;
+            }
+            .navbar a {
+                padding: 10px 22px;
+                color: white;
+                font-size: 16px;
+                text-decoration: none;
+                margin-right: 10px;
+            }
+            .navbar a:hover {
+                background-color:#004182;
+                border-radius:5px;
+            }
+        </style>
+
+        <div class="navbar">
+            <a href="?page=home">Home</a>
+            <a href="?page=upload">Upload & Predict</a>
+            <a href="?page=about">About</a>
+        </div>
+    """, unsafe_allow_html=True)
+
+navbar()
+
+# Get page
+query_params = st.experimental_get_query_params()
+page = query_params.get("page", ["home"])[0]
+
+
+# -------------------------
 # LOAD MODELS
-# ============================================
+# -------------------------
 MODEL_DIR = "models"
 
 purchase_model = joblib.load(os.path.join(MODEL_DIR, "purchase_intent_model.pkl"))
@@ -23,78 +61,57 @@ kmeans_model = joblib.load(os.path.join(MODEL_DIR, "buyer_clusters.pkl"))
 feature_columns = joblib.load(os.path.join(MODEL_DIR, "feature_columns.pkl"))
 cluster_features = joblib.load(os.path.join(MODEL_DIR, "cluster_features.pkl"))
 
-# ============================================
-# SIDEBAR (Navigation)
-# ============================================
-st.sidebar.title("Navigation")
-page = st.sidebar.radio("", ["Home", "Upload & Predict", "About"])
 
-st.sidebar.markdown("---")
-st.sidebar.markdown("**Created by Pratyush Kumar**")
-st.sidebar.markdown("AI-Driven B2B Analytics Project")
-
-
-# ============================================
+# -------------------------
 # HOME PAGE
-# ============================================
-if page == "Home":
+# -------------------------
+if page == "home":
 
-    st.title("🧠 AI-Driven B2B Buying Intent & Lead Score Predictor")
+    st.title("🧠 AI-Powered B2B Buying Intent Predictor")
     st.markdown("""
-    Welcome to the B2B Intent Prediction Dashboard.
-
-    This tool uses machine learning and behavioral analytics to estimate:
+    A simple and intelligent tool to analyze B2B engagement data and predict:
     - Buying Intent (0 = Low, 1 = High)  
-    - Engagement Cluster (0, 1, 2)  
-    - Lead Score (0–100)  
-    - B2B Buying Stage (Awareness → Decision)  
-
-    Use the sidebar to upload your dataset and generate predictions.
+    - Behavioral Cluster  
+    - Lead Score  
+    - Buying Stage (Awareness → Decision)  
+    
+    Use the navigation above to upload your data.
     """)
 
-    st.markdown("### 📥 Download Sample Excel Template")
+    st.subheader("📥 Download Sample File")
 
-    sample_file = "sample_b2b_dataset.xlsx"
+    sample_file = "sample_b2b_dataset.csv"
     if os.path.exists(sample_file):
         with open(sample_file, "rb") as f:
             st.download_button(
-                label="Download Sample File",
+                label="Download sample_b2b_dataset.csv",
                 data=f,
-                file_name="sample_b2b_dataset.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                file_name="sample_b2b_dataset.csv",
+                mime="text/csv"
             )
     else:
-        st.warning("sample_b2b_dataset.xlsx not found. Add it to your app folder.")
+        st.warning("sample_b2b_dataset.csv is missing. Add it to your folder.")
 
 
-# ============================================
+
+# -------------------------
 # UPLOAD & PREDICT PAGE
-# ============================================
-
-elif page == "Upload & Predict":
+# -------------------------
+elif page == "upload":
 
     st.title("📊 Upload Data & Generate Predictions")
-
-    st.markdown("""
-    Upload your CSV/Excel file containing B2B engagement data.
-    The model will calculate:
-    - Predicted Intent  
-    - Engagement Cluster  
-    - Lead Score  
-    - Buying Stage  
-    """)
 
     uploaded_file = st.file_uploader("Upload CSV or Excel file", type=["csv", "xlsx"])
 
     if uploaded_file is not None:
 
-        # Read file
+        # Load data
         if uploaded_file.name.endswith(".csv"):
             df = pd.read_csv(uploaded_file)
         else:
             df = pd.read_excel(uploaded_file)
 
-        st.write("### Preview of Uploaded Data")
+        st.write("### Preview of Data")
         st.dataframe(df.head())
 
         required_cols = [
@@ -102,20 +119,22 @@ elif page == "Upload & Predict":
             "time_spent_min", "email_opens", "content_downloads", "demo_request"
         ]
 
-        missing = [c for c in required_cols if c not in df.columns]
-        if missing:
-            st.error(f"Missing columns: {missing}")
+        missing_cols = [c for c in required_cols if c not in df.columns]
+        if missing_cols:
+            st.error(f"Missing columns: {missing_cols}")
             st.stop()
 
-        # One-hot encode
-        X = pd.get_dummies(df[required_cols], columns=["industry", "company_size"], drop_first=True)
+        # Encoding
+        X = pd.get_dummies(df[required_cols],
+                           columns=["industry", "company_size"],
+                           drop_first=True)
         X = X.reindex(columns=feature_columns, fill_value=0)
 
         # Predictions
         df["predicted_intent"] = purchase_model.predict(X)
         df["cluster"] = kmeans_model.predict(df[cluster_features])
 
-        # Lead score calc
+        # Lead score formula
         raw_score = (
             df["website_visits"] * 0.8 +
             df["pages_viewed"] * 1.2 +
@@ -129,7 +148,7 @@ elif page == "Upload & Predict":
         df["lead_score"] = ((raw_score - raw_score.min()) /
                             (raw_score.max() - raw_score.min()) * 100).round(0)
 
-        # Buying Stage Mapping
+        # Buying stage classification
         def buying_stage(score):
             if score < 30:
                 return "Awareness"
@@ -142,43 +161,37 @@ elif page == "Upload & Predict":
 
         df["buying_stage"] = df["lead_score"].apply(buying_stage)
 
-        st.write("### Final Predictions")
+        st.write("### Final Prediction Results")
         st.dataframe(df)
 
         st.download_button(
-            label="📥 Download Results",
+            label="Download Results CSV",
             data=df.to_csv(index=False).encode("utf-8"),
             file_name="b2b_predictions_output.csv",
             mime="text/csv"
         )
 
 
-# ============================================
+# -------------------------
 # ABOUT PAGE
-# ============================================
+# -------------------------
+elif page == "about":
 
-elif page == "About":
-
-    st.title("📘 About This Project")
-
+    st.title("ℹ️ About This Project")
     st.markdown("""
-    This B2B analytics dashboard predicts organizational buying intent using:
-    - Machine Learning  
-    - Behavioral Engagement Analysis  
-    - Clustering  
-    - Lead Scoring  
+    This project predicts organizational buying intent using digital engagement signals.
 
-    Developed as part of an MBA project by **Pratyush Kumar**.
+    Developed by **Pratyush Kumar**  
+    MBA – AI-driven B2B Market Analytics Project  
     """)
 
-# ============================================
+
+# -------------------------
 # FOOTER
-# ============================================
+# -------------------------
 st.markdown("""
 <hr>
-
-<div style='text-align:center; color: #555;'>
-    Engineered with ❤️ — Pratyush Kumar  
-    <br>AI-Driven B2B Market Analytics Dashboard
+<div style='text-align:center; color:#555; font-size:14px;'>
+    Built with ❤️ and AI — Pratyush Kumar
 </div>
 """, unsafe_allow_html=True)
