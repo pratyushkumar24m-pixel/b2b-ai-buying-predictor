@@ -29,18 +29,18 @@ st.markdown("<h4 style='color:#888; margin-top:-10px;'>By <b>Pratyush Kumar</b><
 # === Added Sample File Download Button (NEW PART)
 # ============================================================
 
-SAMPLE_FILE_PATH = "sample_b2b_dataset.xlsx"
+SAMPLE_FILE_PATH = "sample_b2b_dataset.csv"
 
 if os.path.exists(SAMPLE_FILE_PATH):
     with open(SAMPLE_FILE_PATH, "rb") as sample_file:
         st.download_button(
             label="📥 Download Sample Excel Template",
             data=sample_file,
-            file_name="sample_b2b_dataset.xlsx",
+            file_name="sample_b2b_dataset.csv",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 else:
-    st.warning("Sample file not found. Please upload 'sample_b2b_dataset.xlsx' to your project folder.")
+    st.warning("Sample file not found. Please upload 'sample_b2b_dataset.csv' to your project folder.")
 
 # ============================================================
 
@@ -144,3 +144,4 @@ st.markdown("""
     <span style='font-size:14px; color:#777;'>AI-Driven B2B Market Analytics Project</span>
 </div>
 """, unsafe_allow_html=True)
+
