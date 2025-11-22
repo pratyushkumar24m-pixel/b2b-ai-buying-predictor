@@ -193,7 +193,7 @@ if page == "home":
     # Illustration on right
     with col2:
         st.image(
-            "https://cdn-icons-png.flaticon.com/512/1048/1048949.png",
+            "https://img.freepik.com/premium-photo/b2b-marketing-concept-businessman-holding-b2b-business-marketing-technology-icons-business-action-plan-strategy-online-marketing-business-business_568137-2432.jpg?w=360",
             use_column_width=True,
             caption="AI-powered B2B Insights"
         )
@@ -240,3 +240,4 @@ st.markdown("""
     Built with ❤️ and AI — Pratyush Kumar
 </div>
 """, unsafe_allow_html=True)
+
