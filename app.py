@@ -4,56 +4,98 @@ import numpy as np
 import joblib
 import os
 
-# -------------------------
-# CONFIGURATION
-# -------------------------
+# ---------------------------------------------------------------------
+# PAGE SETTINGS
+# ---------------------------------------------------------------------
 st.set_page_config(
-    page_title="B2B Intent Predictor",
+    page_title="AI B2B Intent Predictor",
     layout="wide"
 )
 
-# -------------------------
-# PREMIUM SIMPLE NAVBAR
-# -------------------------
+# ---------------------------------------------------------------------
+# CUSTOM CSS FOR PREMIUM WEBSITE LOOK
+# ---------------------------------------------------------------------
+st.markdown("""
+    <style>
+        body {
+            background-color: #F8FAF8;
+        }
+        .hero {
+            background-color: #E6F4EA;
+            border-radius: 18px;
+            padding: 50px;
+            margin-top: -30px;
+            margin-bottom: 40px;
+        }
+        .hero-title {
+            font-size: 40px;
+            font-weight: 650;
+            color: #2A3F2F;
+            line-height: 1.2;
+        }
+        .hero-sub {
+            font-size: 18px;
+            color: #4C6B57;
+            margin-top: 10px;
+            margin-bottom: 25px;
+        }
+        .about-section {
+            background-color: #FFFFFF;
+            padding: 40px;
+            border-radius: 15px;
+            margin-top: 20px;
+        }
+        .section-title {
+            font-size: 30px;
+            font-weight: 600;
+            color: #2A3F2F;
+            margin-bottom: 10px;
+        }
+        .section-text {
+            font-size: 16px;
+            color: #4B4B4B;
+            line-height: 1.6;
+        }
+        .navbar {
+            background-color: #0A66C2;
+            padding: 14px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .navbar a {
+            padding: 10px 22px;
+            color: white;
+            font-size: 16px;
+            text-decoration: none;
+            margin-right: 10px;
+        }
+        .navbar a:hover {
+            background-color:#004182;
+            border-radius:5px;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# ---------------------------------------------------------------------
+# NAVIGATION BAR
+# ---------------------------------------------------------------------
 def navbar():
     st.markdown("""
-        <style>
-            .navbar {
-                background-color:#0A66C2;
-                padding:14px;
-                border-radius:8px;
-                margin-bottom:15px;
-            }
-            .navbar a {
-                padding: 10px 22px;
-                color: white;
-                font-size: 16px;
-                text-decoration: none;
-                margin-right: 10px;
-            }
-            .navbar a:hover {
-                background-color:#004182;
-                border-radius:5px;
-            }
-        </style>
-
         <div class="navbar">
             <a href="?page=home">Home</a>
-            <a href="?page=upload">Upload & Predict</a>
             <a href="?page=about">About</a>
         </div>
     """, unsafe_allow_html=True)
 
 navbar()
 
-# Get page
+# Read navigation page
 query_params = st.experimental_get_query_params()
 page = query_params.get("page", ["home"])[0]
 
-
-# -------------------------
+# ---------------------------------------------------------------------
 # LOAD MODELS
-# -------------------------
+# ---------------------------------------------------------------------
 MODEL_DIR = "models"
 
 purchase_model = joblib.load(os.path.join(MODEL_DIR, "purchase_intent_model.pkl"))
@@ -62,24 +104,102 @@ feature_columns = joblib.load(os.path.join(MODEL_DIR, "feature_columns.pkl"))
 cluster_features = joblib.load(os.path.join(MODEL_DIR, "cluster_features.pkl"))
 
 
-# -------------------------
-# HOME PAGE
-# -------------------------
+# =====================================================================
+#  HOME PAGE (Hero + Upload)
+# =====================================================================
 if page == "home":
 
-    st.title("🧠 AI-Powered B2B Buying Intent Predictor")
-    st.markdown("""
-    A simple and intelligent tool to analyze B2B engagement data and predict:
-    - Buying Intent (0 = Low, 1 = High)  
-    - Behavioral Cluster  
-    - Lead Score  
-    - Buying Stage (Awareness → Decision)  
-    
-    Use the navigation above to upload your data.
-    """)
+    # --- HERO SECTION ---
+    col1, col2 = st.columns([1.2, 1])
 
-    st.subheader("📥 Download Sample File")
+    with col1:
+        st.markdown("""
+            <div class="hero">
+                <div class="hero-title">Predict B2B Buying Intent <br> The Smart & Simple Way</div>
+                <div class="hero-sub">
+                    Upload your engagement dataset to instantly generate:<br>
+                    • Lead Score • Buying Intent • Buyer Cluster • Buying Stage
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
 
+        # Upload inside hero
+        uploaded_file = st.file_uploader("Upload your CSV or Excel file", type=["csv", "xlsx"])
+
+        if uploaded_file:
+            if uploaded_file.name.endswith(".csv"):
+                df = pd.read_csv(uploaded_file)
+            else:
+                df = pd.read_excel(uploaded_file)
+
+            st.write("### Data Preview")
+            st.dataframe(df.head())
+
+            required_cols = [
+                "industry", "company_size", "website_visits", "pages_viewed",
+                "time_spent_min", "email_opens", "content_downloads", "demo_request"
+            ]
+
+            missing_cols = [c for c in required_cols if c not in df.columns]
+            if missing_cols:
+                st.error(f"Missing columns: {missing_cols}")
+                st.stop()
+
+            # Encode
+            X = pd.get_dummies(df[required_cols], columns=["industry", "company_size"], drop_first=True)
+            X = X.reindex(columns=feature_columns, fill_value=0)
+
+            # Predictions
+            df["predicted_intent"] = purchase_model.predict(X)
+            df["cluster"] = kmeans_model.predict(df[cluster_features])
+
+            # Lead Score
+            raw_score = (
+                df["website_visits"] * 0.8 +
+                df["pages_viewed"] * 1.2 +
+                df["time_spent_min"] * 0.5 +
+                df["email_opens"] * 3 +
+                df["content_downloads"] * 5 +
+                df["demo_request"] * 20 +
+                df["predicted_intent"] * 25
+            )
+
+            df["lead_score"] = ((raw_score - raw_score.min()) /
+                                (raw_score.max() - raw_score.min()) * 100).round(0)
+
+            # Buying stage
+            def buying_stage(score):
+                if score < 30:
+                    return "Awareness"
+                elif score < 60:
+                    return "Interest"
+                elif score < 85:
+                    return "Evaluation"
+                else:
+                    return "Decision"
+
+            df["buying_stage"] = df["lead_score"].apply(buying_stage)
+
+            st.write("### Prediction Results")
+            st.dataframe(df)
+
+            st.download_button(
+                label="Download Predictions CSV",
+                data=df.to_csv(index=False).encode("utf-8"),
+                file_name="b2b_predictions_output.csv",
+                mime="text/csv"
+            )
+
+    # Illustration on right
+    with col2:
+        st.image(
+            "https://cdn-icons-png.flaticon.com/512/1048/1048949.png",
+            use_column_width=True,
+            caption="AI-powered B2B Insights"
+        )
+
+    # Sample dataset download
+    st.write("### 📥 Download Sample Dataset")
     sample_file = "sample_b2b_dataset.csv"
     if os.path.exists(sample_file):
         with open(sample_file, "rb") as f:
@@ -89,106 +209,31 @@ if page == "home":
                 file_name="sample_b2b_dataset.csv",
                 mime="text/csv"
             )
-    else:
-        st.warning("sample_b2b_dataset.csv is missing. Add it to your folder.")
 
-
-
-# -------------------------
-# UPLOAD & PREDICT PAGE
-# -------------------------
-elif page == "upload":
-
-    st.title("📊 Upload Data & Generate Predictions")
-
-    uploaded_file = st.file_uploader("Upload CSV or Excel file", type=["csv", "xlsx"])
-
-    if uploaded_file is not None:
-
-        # Load data
-        if uploaded_file.name.endswith(".csv"):
-            df = pd.read_csv(uploaded_file)
-        else:
-            df = pd.read_excel(uploaded_file)
-
-        st.write("### Preview of Data")
-        st.dataframe(df.head())
-
-        required_cols = [
-            "industry", "company_size", "website_visits", "pages_viewed",
-            "time_spent_min", "email_opens", "content_downloads", "demo_request"
-        ]
-
-        missing_cols = [c for c in required_cols if c not in df.columns]
-        if missing_cols:
-            st.error(f"Missing columns: {missing_cols}")
-            st.stop()
-
-        # Encoding
-        X = pd.get_dummies(df[required_cols],
-                           columns=["industry", "company_size"],
-                           drop_first=True)
-        X = X.reindex(columns=feature_columns, fill_value=0)
-
-        # Predictions
-        df["predicted_intent"] = purchase_model.predict(X)
-        df["cluster"] = kmeans_model.predict(df[cluster_features])
-
-        # Lead score formula
-        raw_score = (
-            df["website_visits"] * 0.8 +
-            df["pages_viewed"] * 1.2 +
-            df["time_spent_min"] * 0.5 +
-            df["email_opens"] * 3 +
-            df["content_downloads"] * 5 +
-            df["demo_request"] * 20 +
-            df["predicted_intent"] * 25
-        )
-
-        df["lead_score"] = ((raw_score - raw_score.min()) /
-                            (raw_score.max() - raw_score.min()) * 100).round(0)
-
-        # Buying stage classification
-        def buying_stage(score):
-            if score < 30:
-                return "Awareness"
-            elif score < 60:
-                return "Interest"
-            elif score < 85:
-                return "Evaluation"
-            else:
-                return "Decision"
-
-        df["buying_stage"] = df["lead_score"].apply(buying_stage)
-
-        st.write("### Final Prediction Results")
-        st.dataframe(df)
-
-        st.download_button(
-            label="Download Results CSV",
-            data=df.to_csv(index=False).encode("utf-8"),
-            file_name="b2b_predictions_output.csv",
-            mime="text/csv"
-        )
-
-
-# -------------------------
-# ABOUT PAGE
-# -------------------------
+# =====================================================================
+#  ABOUT PAGE
+# =====================================================================
 elif page == "about":
 
-    st.title("ℹ️ About This Project")
     st.markdown("""
-    This project predicts organizational buying intent using digital engagement signals.
+        <div class="about-section">
+            <div class="section-title">About This Project</div>
+            <div class="section-text">
+                This AI-driven B2B Intent Prediction Tool was created to analyze digital 
+                engagement patterns such as website activity, content downloads, email interactions, 
+                and demo requests. Using machine learning models including Logistic Regression 
+                and K-Means Clustering, the system predicts buying intent, behavioral clusters, 
+                lead score, and the buyer’s stage in the decision journey.
+                <br><br>
+                Future enhancements may include real-time CRM integration, predictive revenue 
+                modeling, and automated marketing recommendations for sales teams and B2B marketers.
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
-    Developed by **Pratyush Kumar**  
-    MBA – AI-driven B2B Market Analytics Project  
-    """)
-
-
-# -------------------------
+# ---------------------------------------------------------------------
 # FOOTER
-# -------------------------
+# ---------------------------------------------------------------------
 st.markdown("""
 <hr>
 <div style='text-align:center; color:#555; font-size:14px;'>
